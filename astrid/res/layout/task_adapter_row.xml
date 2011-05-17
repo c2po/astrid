@@ -57,6 +57,15 @@
                 android:visibility="gone" />
                 
         </LinearLayout>
+        
+        <!-- assignee photo -->
+        <ImageView android:id="@+id/picture"
+            android:layout_width="35dip"
+            android:layout_height="fill_parent"
+            android:padding="5dip" 
+            android:scaleType="fitCenter"
+            android:visibility="gone"/>
+                    
     </LinearLayout>
       
     <TextView android:id="@+id/extendedDetails"
