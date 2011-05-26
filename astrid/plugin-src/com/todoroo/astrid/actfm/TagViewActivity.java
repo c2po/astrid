@@ -1,12 +1,16 @@
 package com.todoroo.astrid.actfm;
 
+import greendroid.widget.AsyncImageView;
+
 import java.io.IOException;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
@@ -27,9 +31,9 @@ import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TabHost;
 import android.widget.TabHost.OnTabChangeListener;
@@ -66,7 +70,8 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
 
     protected static final int MENU_REFRESH_ID = MENU_SYNC_ID;
 
-    protected static final int REQUEST_CODE_PICTURE = 1;
+    protected static final int REQUEST_CODE_CAMERA = 1;
+    protected static final int REQUEST_CODE_PICTURE = 2;
 
     private TagData tagData;
 
@@ -80,7 +85,7 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
     private UpdateAdapter updateAdapter;
     private PeopleContainer tagMembers;
     private EditText addCommentField;
-    private ImageView picture;
+    private AsyncImageView picture;
     private EditText tagName;
 
     // --- UI initialization
@@ -196,15 +201,37 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
     protected void setUpMemberPage() {
         tagMembers = (PeopleContainer) findViewById(R.id.members_container);
         tagName = (EditText) findViewById(R.id.tag_name);
-        picture = (ImageView) findViewById(R.id.picture);
+        picture = (AsyncImageView) findViewById(R.id.picture);
 
         picture.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View arg0) {
-                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-                intent.setType("image/*"); //$NON-NLS-1$
-                startActivityForResult(Intent.createChooser(intent,
-                        getString(R.string.actfm_TVA_tag_picture)), REQUEST_CODE_PICTURE);
+                ArrayAdapter<String> adapter = new ArrayAdapter<String>(TagViewActivity.this,
+                        android.R.layout.simple_spinner_dropdown_item, new String[] {
+                            getString(R.string.actfm_picture_camera),
+                            getString(R.string.actfm_picture_gallery),
+                });
+
+                DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
+                    @SuppressWarnings("nls")
+                    @Override
+                    public void onClick(DialogInterface d, int which) {
+                        if(which == 0) {
+                            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                            startActivityForResult(intent, REQUEST_CODE_CAMERA);
+                        } else {
+                            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                            intent.setType("image/*");
+                            startActivityForResult(Intent.createChooser(intent,
+                                    getString(R.string.actfm_TVA_tag_picture)), REQUEST_CODE_PICTURE);
+                        }
+                    }
+                };
+
+                // show a menu of available options
+                new AlertDialog.Builder(TagViewActivity.this)
+                .setAdapter(adapter, listener)
+                .show().setOwnerActivity(TagViewActivity.this);
             }
         });
 
@@ -314,6 +341,7 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
     @SuppressWarnings("nls")
     private void refreshMembersPage() {
         tagName.setText(tagData.getValue(TagData.NAME));
+        picture.setUrl(tagData.getValue(TagData.PICTURE));
 
         TextView ownerLabel = (TextView) findViewById(R.id.tag_owner);
         try {
@@ -464,9 +492,16 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
         refreshMembersPage();
     }
 
+    @SuppressWarnings("nls")
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if(requestCode == REQUEST_CODE_PICTURE && resultCode == RESULT_OK) {
+        if(requestCode == REQUEST_CODE_CAMERA && resultCode == RESULT_OK) {
+            Bitmap bitmap = data.getParcelableExtra("data");
+            if(bitmap != null) {
+                picture.setImageBitmap(bitmap);
+                uploadTagPicture(bitmap);
+            }
+        } else if(requestCode == REQUEST_CODE_PICTURE && resultCode == RESULT_OK) {
             Uri uri = data.getData();
             String[] projection = { MediaStore.Images.Media.DATA };
             Cursor cursor = managedQuery(uri, projection, null, null, null);
@@ -486,9 +521,27 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
             }
 
             Bitmap bitmap = BitmapFactory.decodeFile(path);
-            if(bitmap != null)
+            if(bitmap != null) {
                 picture.setImageBitmap(bitmap);
+                uploadTagPicture(bitmap);
+            }
         }
+    }
+
+    private void uploadTagPicture(final Bitmap bitmap) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    String url = actFmSyncService.setTagPicture(tagData.getValue(TagData.REMOTE_ID), bitmap);
+                    tagData.setValue(TagData.PICTURE, url);
+                    Flags.set(Flags.SUPPRESS_SYNC);
+                    tagDataService.save(tagData);
+                } catch (IOException e) {
+                    DialogUtilities.okDialog(TagViewActivity.this, e.toString(), null);
+                }
+            }
+        }).start();
     }
 
     private void addComment() {

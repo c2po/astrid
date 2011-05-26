@@ -3,15 +3,19 @@
  */
 package com.todoroo.astrid.actfm.sync;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import org.apache.http.entity.mime.MultipartEntity;
+import org.apache.http.entity.mime.content.ByteArrayBody;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import android.content.ContentValues;
+import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -494,6 +498,30 @@ public final class ActFmSyncService {
                 return cursorToMap(cursor, updateDao, Update.REMOTE_ID, Update.ID);
             }
         }, done, "updates:" + tagData.getId(), "tag_id", tagData.getValue(TagData.REMOTE_ID));
+    }
+
+    /**
+     * Update tag picture
+     * @param path
+     * @throws IOException
+     * @throws ActFmServiceException
+     */
+    public String setTagPicture(long tagId, Bitmap bitmap) throws ActFmServiceException, IOException {
+        if(!checkForToken())
+            return null;
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        if(bitmap.getWidth() > 512 || bitmap.getHeight() > 512) {
+            float scale = Math.min(512f / bitmap.getWidth(), 512f / bitmap.getHeight());
+            bitmap = Bitmap.createScaledBitmap(bitmap, (int)(scale * bitmap.getWidth()),
+                    (int)(scale * bitmap.getHeight()), false);
+        }
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
+        byte[] bytes = baos.toByteArray();
+        MultipartEntity data = new MultipartEntity();
+        data.addPart("picture", new ByteArrayBody(bytes, "image/jpg", "image.jpg"));
+        JSONObject result = actFmInvoker.post("tag_set_picture", data, "id", tagId, "token", token);
+        return result.optString("url");
     }
 
     // --- generic invokation

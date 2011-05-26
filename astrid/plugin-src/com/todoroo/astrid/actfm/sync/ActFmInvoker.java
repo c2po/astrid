@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.Comparator;
 
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.http.HttpEntity;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -103,6 +104,35 @@ public class ActFmInvoker {
             Log.e("act-fm-invoke", request);
             String response = restClient.get(request);
             Log.e("act-fm-invoke-response", response);
+            JSONObject object = new JSONObject(response);
+            if(object.getString("status").equals("error"))
+                throw new ActFmServiceException(object.getString("message"));
+            return object;
+        } catch (JSONException e) {
+            throw new IOException(e.getMessage());
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Invokes API method using HTTP POST
+     *
+     * @param method
+     *          API method to invoke
+     * @param data
+     *          data to transmit
+     * @param getParameters
+     *          Name/Value pairs. Values will be URL encoded.
+     * @return response object
+     */
+    public JSONObject post(String method, HttpEntity data, Object... getParameters) throws IOException,
+    ActFmServiceException {
+        try {
+            String request = createFetchUrl(method, getParameters);
+            Log.e("act-fm-post", request);
+            String response = restClient.post(request, data);
+            Log.e("act-fm-post-response", response);
             JSONObject object = new JSONObject(response);
             if(object.getString("status").equals("error"))
                 throw new ActFmServiceException(object.getString("message"));

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- See the file "LICENSE" for the full license governing this code. -->
 <TabHost xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:astrid="http://schemas.android.com/apk/res/com.timsu.astrid"
     android:id="@android:id/tabhost"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
@@ -51,7 +52,7 @@
                         android:layout_height="wrap_content"
                         android:paddingBottom="10dip">
                     
-                        <ImageView 
+                        <greendroid.widget.AsyncImageView 
                             android:id="@+id/picture"
                             android:layout_width="80dip"
                             android:layout_height="80dip"
@@ -59,7 +60,7 @@
                             android:layout_alignParentTop="true"
                             android:scaleType="fitCenter"
                             android:paddingRight="10dip"
-                            android:src="@android:drawable/ic_menu_gallery" />
+                            astrid:defaultSrc="@android:drawable/ic_menu_gallery" />
                       
                         <TextView 
                             android:id="@+id/tag_label"
