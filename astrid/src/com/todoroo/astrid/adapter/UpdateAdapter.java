@@ -1,5 +1,7 @@
 package com.todoroo.astrid.adapter;
 
+import greendroid.widget.AsyncImageView;
+
 import org.json.JSONObject;
 
 import android.app.ListActivity;
@@ -12,14 +14,12 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CursorAdapter;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.timsu.astrid.R;
 import com.todoroo.andlib.data.TodorooCursor;
 import com.todoroo.andlib.service.DependencyInjectionService;
 import com.todoroo.andlib.utility.DateUtilities;
-import com.todoroo.andlib.utility.ImageLoader;
 import com.todoroo.astrid.actfm.sync.ActFmPreferenceService;
 import com.todoroo.astrid.adapter.TaskAdapter.OnCompletedTaskListener;
 import com.todoroo.astrid.data.Update;
@@ -37,7 +37,6 @@ public class UpdateAdapter extends CursorAdapter {
     protected final ListActivity activity;
     private final int resource;
     private final LayoutInflater inflater;
-    private final ImageLoader imageLoader;
 
     /**
      * Constructor
@@ -63,7 +62,6 @@ public class UpdateAdapter extends CursorAdapter {
 
         this.resource = resource;
         this.activity = activity;
-        this.imageLoader = new ImageLoader(activity);
     }
 
     /* ======================================================================
@@ -101,11 +99,9 @@ public class UpdateAdapter extends CursorAdapter {
         Resources r = activity.getResources();
 
         // picture
-        final ImageView pictureView = (ImageView)view.findViewById(R.id.picture); {
+        final AsyncImageView pictureView = (AsyncImageView)view.findViewById(R.id.picture); {
             String pictureUrl = user.optString("picture");
-            pictureView.setImageResource(R.drawable.image_placeholder);
-            if(!TextUtils.isEmpty(pictureUrl))
-                imageLoader.displayImage(pictureUrl, pictureView);
+            pictureView.setUrl(pictureUrl);
         }
 
         // name
