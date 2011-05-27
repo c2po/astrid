@@ -3,11 +3,13 @@ package com.todoroo.astrid.ui;
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.ContentUris;
+import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.MergeCursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.provider.Contacts;
 import android.provider.Contacts.ContactMethods;
 import android.provider.Contacts.People;
@@ -20,6 +22,7 @@ import android.widget.TextView;
 
 import com.timsu.astrid.R;
 import com.todoroo.andlib.service.Autowired;
+import com.todoroo.andlib.service.ContextManager;
 import com.todoroo.andlib.service.DependencyInjectionService;
 import com.todoroo.andlib.sql.Criterion;
 import com.todoroo.andlib.sql.Functions;
@@ -69,16 +72,39 @@ public class ContactListAdapter extends CursorAdapter {
 
         if(cursor.getColumnNames().length == PEOPLE_PROJECTION.length) {
             text.setText(convertToString(cursor));
+            imageView.setImageResource(android.R.drawable.ic_menu_gallery);
             Uri uri = ContentUris.withAppendedId(People.CONTENT_URI, cursor.getLong(0));
-            Bitmap bitmap = People.loadContactPhoto(context, uri, android.R.drawable.ic_menu_gallery,
-                    null);
-            imageView.setVisibility(bitmap != null ? View.VISIBLE : View.GONE);
-            imageView.setImageBitmap(bitmap);
-
+            imageView.setTag(uri);
+            ContactImageTask ciTask = new ContactImageTask(imageView);
+            ciTask.execute(uri);
         } else {
             int name = cursor.getColumnIndexOrThrow(TagData.NAME.name);
             text.setText(cursor.getString(name));
             imageView.setImageResource(R.drawable.med_tag);
+        }
+    }
+
+    private class ContactImageTask extends AsyncTask<Uri, Void, Bitmap> {
+        private Uri uri;
+        private final ImageView imageView;
+
+
+        public ContactImageTask(ImageView imageView) {
+            this.imageView = imageView;
+        }
+
+        @Override
+        protected Bitmap doInBackground(Uri... params) {
+            uri = params[0];
+            return Contacts.People.loadContactPhoto(activity, uri, 0, null);
+        }
+
+        @Override
+        protected void onPostExecute(Bitmap bitmap) {
+            if (isCancelled())
+                bitmap = null;
+            if(imageView != null && uri.equals(imageView.getTag()) && bitmap != null)
+                imageView.setImageBitmap(bitmap);
         }
     }
 
@@ -102,21 +128,23 @@ public class ContactListAdapter extends CursorAdapter {
             return getFilterQueryProvider().runQuery(constraint);
         }
 
-        StringBuilder buffer = null;
+        StringBuilder buffer = new StringBuilder();
         String[] args = null;
-        if (constraint != null) {
+        if(constraint != null && constraint.length() > 1) {
             constraint = constraint.toString().trim();
-            buffer = new StringBuilder();
             buffer.append("UPPER(").append(People.NAME).append(") GLOB ?");
             buffer.append(" OR ");
             buffer.append("UPPER(").append(ContactMethods.DATA).append(") GLOB ?");
             args = new String[] { constraint.toString().toUpperCase() + "*",
                     constraint.toString().toUpperCase() + "*" };
+        } else {
+            buffer.append("0");
         }
 
+        String sort = Contacts.People.DEFAULT_SORT_ORDER + " LIMIT 20";
         Cursor peopleCursor = mContent.query(Contacts.ContactMethods.CONTENT_EMAIL_URI,
-                PEOPLE_PROJECTION, buffer == null ? null : buffer.toString(), args,
-                Contacts.People.DEFAULT_SORT_ORDER);
+                PEOPLE_PROJECTION, buffer.toString(), args,
+                sort);
         activity.startManagingCursor(peopleCursor);
 
         if(!completeSharedTags)
@@ -125,6 +153,8 @@ public class ContactListAdapter extends CursorAdapter {
         Criterion crit = Criterion.all;
         if(constraint != null)
             crit = Functions.upper(TagData.NAME).like("%" + constraint.toString().toUpperCase() + "%");
+        else
+            crit = Criterion.none;
         Cursor tagCursor = tagDataService.query(Query.select(TagData.ID, TagData.NAME, TagData.PICTURE, TagData.THUMB).
                 where(Criterion.and(TagData.USER_ID.eq(0), TagData.MEMBER_COUNT.gt(0),
                         crit)).orderBy(Order.desc(TagData.NAME)));
@@ -134,4 +164,30 @@ public class ContactListAdapter extends CursorAdapter {
     }
 
     private final ContentResolver mContent;
+
+    /**
+     * debug method
+     */
+    public static void makeLotsOfContacts() {
+        ContentResolver cr = ContextManager.getContext().getContentResolver();
+        ContentValues personValues = new ContentValues();
+        ContentValues emailValues = new ContentValues();
+        for(int i = 0; i < 2000; i++) {
+            personValues.clear();
+            personValues.put(Contacts.People.NAME, "John " + i + " Doe");
+            Uri newPersonUri = cr.insert(Contacts.People.CONTENT_URI, personValues);
+            if (newPersonUri != null) {
+                emailValues.clear();
+                Uri emailUri = Uri.withAppendedPath(newPersonUri,
+                        Contacts.People.ContactMethods.CONTENT_DIRECTORY);
+                emailValues.put(Contacts.ContactMethods.KIND,
+                        Contacts.KIND_EMAIL);
+                emailValues.put(Contacts.ContactMethods.TYPE,
+                        Contacts.ContactMethods.TYPE_HOME);
+                emailValues.put(Contacts.ContactMethods.DATA,
+                    "john." + i + ".doe@test.com");
+                Uri emailUpdate = cr.insert(emailUri, emailValues);
+            }
+        }
+    }
 }

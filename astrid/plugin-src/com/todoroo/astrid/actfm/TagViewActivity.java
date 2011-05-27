@@ -87,6 +87,7 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
     private EditText addCommentField;
     private AsyncImageView picture;
     private EditText tagName;
+    private boolean dataLoaded = false;
 
     // --- UI initialization
 
@@ -292,6 +293,12 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+
+        synchronized(this) {
+            if(dataLoaded)
+                return;
+            dataLoaded = true;
+        }
 
         String tag = getIntent().getStringExtra(EXTRA_TAG_NAME);
         long remoteId = getIntent().getLongExtra(EXTRA_TAG_REMOTE_ID, 0);

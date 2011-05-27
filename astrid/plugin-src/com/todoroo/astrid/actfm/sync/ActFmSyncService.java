@@ -657,7 +657,10 @@ public final class ActFmSyncService {
             model.setValue(Update.ACTION, json.getString("action"));
             model.setValue(Update.ACTION_CODE, json.getString("action_code"));
             model.setValue(Update.TARGET_NAME, json.getString("target_name"));
-            model.setValue(Update.MESSAGE, json.getString("message"));
+            if(json.isNull("message"))
+                model.setValue(Update.MESSAGE, "");
+            else
+                model.setValue(Update.MESSAGE, json.getString("message"));
             model.setValue(Update.PICTURE, json.getString("picture"));
             model.setValue(Update.CREATION_DATE, readDate(json, "created_at"));
             model.setValue(Update.TAG, tagData.getId());
@@ -734,6 +737,7 @@ public final class ActFmSyncService {
             model.setValue(Task.DELETION_DATE, readDate(json, "deleted_at"));
             model.setValue(Task.RECURRENCE, json.optString("repeat", ""));
             model.setValue(Task.NOTES, json.optString("notes", ""));
+            model.setValue(Task.DETAILS_DATE, 0L);
 
             JSONArray tags = json.getJSONArray("tags");
             for(int i = 0; i < tags.length(); i++) {

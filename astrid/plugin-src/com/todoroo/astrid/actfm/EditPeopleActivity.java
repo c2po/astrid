@@ -218,6 +218,8 @@ public class EditPeopleActivity extends Activity {
         spinnerValues.clear();
         for(int i = 0; i < sharedPeople.size(); i++) {
             JSONObject person = sharedPeople.get(i);
+            if(person == null)
+                continue;
             long id = person.optLong("id", -1);
             if(id == ActFmPreferenceService.userId() || (id > -1 && userIds.contains(id)))
                 continue;

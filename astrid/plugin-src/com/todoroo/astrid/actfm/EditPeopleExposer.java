@@ -53,6 +53,7 @@ public class EditPeopleExposer extends BroadcastReceiver {
         } else if(ACTION.equals(intent.getAction())) {
             Intent launchIntent = new Intent(context, EditPeopleActivity.class);
             launchIntent.putExtra(EditPeopleActivity.EXTRA_TASK_ID, taskId);
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             ContextManager.getContext().startActivity(launchIntent);
         }
     }

@@ -55,16 +55,18 @@ public class PeopleContainer extends LinearLayout {
         LayoutInflater inflater = (LayoutInflater) getContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 
         // check if already exists
-        TextView lastText = null;
         for(int i = 0; i < getChildCount(); i++) {
             View view = getChildAt(i);
-            lastText = (TextView) view.findViewById(R.id.text1);
-            if(lastText.getText().equals(person))
-                return lastText;
+            TextView matching = (TextView) view.findViewById(R.id.text1);
+            if(matching.getText().equals(person))
+                return matching;
         }
 
         final View tagItem = inflater.inflate(R.layout.contact_edit_row, null);
-        addView(tagItem);
+        if(person.length() == 0)
+            addView(tagItem, 0);
+        else
+            addView(tagItem);
         final ContactsAutoComplete textView = (ContactsAutoComplete)tagItem.
             findViewById(R.id.text1);
         textView.setText(person);
@@ -88,8 +90,7 @@ public class PeopleContainer extends LinearLayout {
             @Override
             public void onTextChanged(CharSequence s, int start, int before,
                     int count) {
-                if(count > 0 && getChildAt(getChildCount()-1) ==
-                        tagItem) {
+                if(count > 0 && getLastTextView() == textView) {
                     addPerson(""); //$NON-NLS-1$
                 }
 
@@ -134,11 +135,13 @@ public class PeopleContainer extends LinearLayout {
      * @return
      */
     private TextView getLastTextView() {
-        if(getChildCount() == 0)
-            return null;
-        View lastItem = getChildAt(getChildCount()-1);
-        TextView lastText = (TextView) lastItem.findViewById(R.id.text1);
-        return lastText;
+        for(int i = 0; i < getChildCount(); i++) {
+            View lastItem = getChildAt(i);
+            TextView lastText = (TextView) lastItem.findViewById(R.id.text1);
+            if(lastText.isEnabled())
+                return lastText;
+        }
+        return null;
     }
 
     public TextView getTextView(int index) {
