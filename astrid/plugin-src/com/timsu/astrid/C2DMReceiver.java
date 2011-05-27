@@ -29,6 +29,7 @@ import com.todoroo.astrid.data.TagData;
 import com.todoroo.astrid.service.TagDataService;
 import com.todoroo.astrid.tags.TagFilterExposer;
 import com.todoroo.astrid.utility.Constants;
+import com.todoroo.astrid.utility.Flags;
 
 @SuppressWarnings("nls")
 public class C2DMReceiver extends BroadcastReceiver {
@@ -60,12 +61,13 @@ public class C2DMReceiver extends BroadcastReceiver {
         if(intent.hasExtra("tag_id")) {
             TodorooCursor<TagData> cursor = tagDataService.query(
                     Query.select(TagData.ID).where(TagData.REMOTE_ID.eq(
-                            intent.getLongExtra("tag_id", -1))));
+                            intent.getStringExtra("tag_id"))));
             try {
                 final TagData tagData = new TagData();
                 if(cursor.getCount() == 0) {
                     tagData.setValue(TagData.NAME, intent.getStringExtra("title"));
-                    tagData.setValue(TagData.REMOTE_ID, intent.getLongExtra("tag_id", 0));
+                    tagData.setValue(TagData.REMOTE_ID, Long.parseLong(intent.getStringExtra("tag_id")));
+                    Flags.set(Flags.SUPPRESS_SYNC);
                     tagDataService.save(tagData);
                     new Thread(new Runnable() {
                         @Override
@@ -110,7 +112,7 @@ public class C2DMReceiver extends BroadcastReceiver {
                 message, pendingIntent);
         notification.flags |= Notification.FLAG_AUTO_CANCEL;
         if("true".equals(intent.getStringExtra("sound")))
-                notification.flags |= Notification.DEFAULT_SOUND;
+            notification.flags |= Notification.DEFAULT_SOUND;
 
         nm.notify(Constants.NOTIFICATION_ACTFM, notification);
     }
