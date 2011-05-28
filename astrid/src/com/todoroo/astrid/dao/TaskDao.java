@@ -81,6 +81,16 @@ public class TaskDao extends DatabaseDao<Task> {
     	}
 
     	/** @return tasks that have not yet been completed or deleted */
+    	public static Criterion activeVisibleMine() {
+            return Criterion.and(Task.COMPLETION_DATE.eq(0),
+                    Task.DELETION_DATE.eq(0),
+                    Task.HIDE_UNTIL.lt(Functions.now()),
+                    Field.field(Task.FLAGS.name + " & " + //$NON-NLS-1$
+                            Task.FLAG_IS_READONLY).eq(0),
+                    Task.USER_ID.eq(0));
+    	}
+
+    	/** @return tasks that have not yet been completed or deleted */
     	public static Criterion isActive() {
     	    return Criterion.and(Task.COMPLETION_DATE.eq(0),
     	            Task.DELETION_DATE.eq(0));
