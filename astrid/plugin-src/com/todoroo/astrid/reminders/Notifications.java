@@ -121,7 +121,7 @@ public class Notifications extends BroadcastReceiver {
         Task task;
         try {
             task = taskDao.fetch(id, Task.ID, Task.TITLE, Task.HIDE_UNTIL, Task.COMPLETION_DATE,
-                        Task.DUE_DATE, Task.DELETION_DATE, Task.REMINDER_FLAGS);
+                        Task.DUE_DATE, Task.DELETION_DATE, Task.REMINDER_FLAGS, Task.USER_ID);
             if(task == null)
                 throw new IllegalArgumentException("cound not find item with id"); //$NON-NLS-1$
 
@@ -130,8 +130,8 @@ public class Notifications extends BroadcastReceiver {
             return false;
         }
 
-        // you're done - don't sound, do delete
-        if(task.isCompleted() || task.isDeleted())
+        // you're done, or not yours - don't sound, do delete
+        if(task.isCompleted() || task.isDeleted() || task.getValue(Task.USER_ID) != 0)
             return false;
 
         // it's hidden - don't sound, don't delete

@@ -165,7 +165,7 @@ public final class ReminderService  {
             }
         }
 
-        if(task.isCompleted() || task.isDeleted())
+        if(task.isCompleted() || task.isDeleted() || task.getValue(Task.USER_ID) != 0)
             return;
 
         // snooze reminder
@@ -179,18 +179,6 @@ public final class ReminderService  {
 
         // notifications after due date
         long whenOverdue = calculateNextOverdueReminder(task);
-
-        /*if(Constants.DEBUG) {
-            System.err.println("TASK: " + task.getValue(Task.TITLE));
-            System.err.println("LAST REMINDER: " + new Date(task.getValue(Task.REMINDER_LAST)));
-            if(task.hasDueDate())
-                System.err.println("DUEDATE: " + new Date(task.getValue(Task.DUE_DATE)));
-            System.err.println("WHEN OVERDUE: " + (whenOverdue));
-            System.err.println("WHEN DUED: " + (whenDueDate));
-            System.err.println("WHEN SNOOZ: " + (whenSnooze));
-            System.err.println("WHEN RANDO: " + (whenRandom));
-        }*/
-
 
         // if random reminders are too close to due date, favor due date
         if(whenRandom != NO_ALARM && whenDueDate - whenRandom < DateUtilities.ONE_DAY)
