@@ -175,9 +175,11 @@ public class Database extends AbstractDatabase {
             onCreateTables();
 
             for(Property<?> property : new Property<?>[] { Task.REMOTE_ID,
-                    Task.USER_ID, Task.USER, Task.COMMENT_COUNT })
+                    Task.USER_ID, Task.COMMENT_COUNT })
                 database.execSQL("ALTER TABLE " + Task.TABLE.name + " ADD " +
-                        property.accept(visitor, null));
+                        property.accept(visitor, null) + " DEFAULT 0");
+            database.execSQL("ALTER TABLE " + Task.TABLE.name + " ADD " +
+                    Task.USER.accept(visitor, null));
         } catch (SQLiteException e) {
             Log.e("astrid", "db-upgrade-" + oldVersion + "-" + newVersion, e);
         }
@@ -202,25 +204,25 @@ public class Database extends AbstractDatabase {
             database.execSQL("ALTER TABLE " + TagData.TABLE.name + " ADD " +
                     TagData.MEMBERS.accept(visitor, null));
             database.execSQL("ALTER TABLE " + TagData.TABLE.name + " ADD " +
-                    TagData.MEMBER_COUNT.accept(visitor, null));
+                    TagData.MEMBER_COUNT.accept(visitor, null) + " DEFAULT 0");
         } catch (SQLiteException e) {
             Log.e("astrid", "db-upgrade-" + oldVersion + "-" + newVersion, e);
         }
         case 14: try {
             database.execSQL("ALTER TABLE " + TagData.TABLE.name + " ADD " +
-                    TagData.TASK_COUNT.accept(visitor, null));
+                    TagData.TASK_COUNT.accept(visitor, null) + " DEFAULT 0");
         } catch (SQLiteException e) {
             Log.e("astrid", "db-upgrade-" + oldVersion + "-" + newVersion, e);
         }
         case 15: try {
             database.execSQL("ALTER TABLE " + Task.TABLE.name + " ADD " +
-                    Task.LAST_SYNC.accept(visitor, null));
+                    Task.LAST_SYNC.accept(visitor, null) + " DEFAULT 0");
         } catch (SQLiteException e) {
             Log.e("astrid", "db-upgrade-" + oldVersion + "-" + newVersion, e);
         }
         case 16: try {
             database.execSQL("ALTER TABLE " + Task.TABLE.name + " ADD " +
-                    Task.CREATOR_ID.accept(visitor, null));
+                    Task.CREATOR_ID.accept(visitor, null) + " DEFAULT 0");
         } catch (SQLiteException e) {
             Log.e("astrid", "db-upgrade-" + oldVersion + "-" + newVersion, e);
         }

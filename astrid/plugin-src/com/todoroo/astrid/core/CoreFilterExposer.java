@@ -69,8 +69,7 @@ public final class CoreFilterExposer extends BroadcastReceiver {
     public static Filter buildInboxFilter(Resources r) {
         Filter inbox = new Filter(r.getString(R.string.BFE_Active), r.getString(R.string.BFE_Active),
                 new QueryTemplate().where(
-                        Criterion.and(TaskCriteria.isActive(), TaskCriteria.isVisible(),
-                                TaskCriteria.ownedByMe(),
+                        Criterion.and(TaskCriteria.activeVisibleMine(),
                                 Criterion.not(Task.ID.in(Query.select(Metadata.TASK).from(Metadata.TABLE).where(
                                         Criterion.and(MetadataCriteria.withKey(TagService.KEY),
                                                 TagService.TAG.like("x_%", "x"))))))), //$NON-NLS-1$ //$NON-NLS-2$

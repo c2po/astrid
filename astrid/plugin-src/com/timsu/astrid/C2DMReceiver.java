@@ -22,7 +22,6 @@ import com.todoroo.andlib.utility.Preferences;
 import com.todoroo.astrid.actfm.TagViewActivity;
 import com.todoroo.astrid.actfm.sync.ActFmSyncService;
 import com.todoroo.astrid.activity.ShortcutActivity;
-import com.todoroo.astrid.api.Filter;
 import com.todoroo.astrid.api.FilterWithCustomIntent;
 import com.todoroo.astrid.core.CoreFilterExposer;
 import com.todoroo.astrid.data.TagData;
@@ -60,7 +59,7 @@ public class C2DMReceiver extends BroadcastReceiver {
         Intent notifyIntent;
         if(intent.hasExtra("tag_id")) {
             TodorooCursor<TagData> cursor = tagDataService.query(
-                    Query.select(TagData.ID).where(TagData.REMOTE_ID.eq(
+                    Query.select(TagData.PROPERTIES).where(TagData.REMOTE_ID.eq(
                             intent.getStringExtra("tag_id"))));
             try {
                 final TagData tagData = new TagData();
@@ -86,9 +85,9 @@ public class C2DMReceiver extends BroadcastReceiver {
                     tagData.readFromCursor(cursor);
                 }
 
-                Filter filter = TagFilterExposer.filterFromTagData(context, tagData);
+                FilterWithCustomIntent filter = (FilterWithCustomIntent)TagFilterExposer.filterFromTagData(context, tagData);
                 if(intent.hasExtra("activity_id"))
-                    ((FilterWithCustomIntent)filter).customExtras.putInt(TagViewActivity.EXTRA_START_TAB, 1);
+                    filter.customExtras.putInt(TagViewActivity.EXTRA_START_TAB, 1);
                 notifyIntent = ShortcutActivity.createIntent(filter);
             } finally {
                 cursor.close();

@@ -107,6 +107,9 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
         };
         ((EditText) findViewById(R.id.quickAddText)).setOnTouchListener(onTouch);
         ((EditText) findViewById(R.id.commentField)).setOnTouchListener(onTouch);
+
+        if(getIntent().hasExtra(EXTRA_START_TAB))
+            tabHost.setCurrentTab(getIntent().getIntExtra(EXTRA_START_TAB, 0));
     }
 
     @SuppressWarnings("nls")
@@ -128,9 +131,6 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
         addTab(tabWidget, R.id.tab_settings, "members", tabLabels[2]);
 
         tabHost.setOnTabChangedListener(this);
-
-        if(getIntent().hasExtra(EXTRA_START_TAB))
-            tabHost.setCurrentTab(getIntent().getIntExtra(EXTRA_START_TAB, 0));
 
         return parent;
     }
