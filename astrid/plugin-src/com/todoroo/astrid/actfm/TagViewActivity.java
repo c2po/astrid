@@ -10,8 +10,11 @@ import org.json.JSONObject;
 
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -44,6 +47,9 @@ import android.widget.TextView.OnEditorActionListener;
 import com.timsu.astrid.R;
 import com.todoroo.andlib.data.TodorooCursor;
 import com.todoroo.andlib.service.Autowired;
+import com.todoroo.andlib.service.ContextManager;
+import com.todoroo.andlib.service.NotificationManager;
+import com.todoroo.andlib.service.NotificationManager.AndroidNotificationManager;
 import com.todoroo.andlib.sql.Criterion;
 import com.todoroo.andlib.sql.Query;
 import com.todoroo.andlib.utility.DateUtilities;
@@ -53,6 +59,7 @@ import com.todoroo.astrid.actfm.sync.ActFmPreferenceService;
 import com.todoroo.astrid.actfm.sync.ActFmSyncService;
 import com.todoroo.astrid.activity.TaskListActivity;
 import com.todoroo.astrid.adapter.UpdateAdapter;
+import com.todoroo.astrid.api.AstridApiConstants;
 import com.todoroo.astrid.core.SortHelper;
 import com.todoroo.astrid.dao.UpdateDao;
 import com.todoroo.astrid.data.TagData;
@@ -64,6 +71,10 @@ import com.todoroo.astrid.utility.Flags;
 
 public class TagViewActivity extends TaskListActivity implements OnTabChangeListener {
 
+    private static final String LAST_FETCH_KEY = "tag-fetch-"; //$NON-NLS-1$
+
+    public static final String BROADCAST_TAG_ACTIVITY = AstridApiConstants.PACKAGE + ".TAG_ACTIVITY"; //$NON-NLS-1$
+
     public static final String EXTRA_TAG_NAME = "tag"; //$NON-NLS-1$
     public static final String EXTRA_TAG_REMOTE_ID = "remoteId"; //$NON-NLS-1$
     public static final String EXTRA_START_TAB = "tab"; //$NON-NLS-1$
@@ -72,6 +83,7 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
 
     protected static final int REQUEST_CODE_CAMERA = 1;
     protected static final int REQUEST_CODE_PICTURE = 2;
+
 
     private TagData tagData;
 
@@ -322,7 +334,13 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
             cursor.close();
         }
 
-        refreshData(false, false);
+        String fetchKey = LAST_FETCH_KEY + tagData.getId();
+        long lastFetchDate = Preferences.getLong(fetchKey, 0);
+        if(DateUtilities.now() > lastFetchDate + 300000L) {
+            refreshData(false, false);
+            Preferences.setLong(fetchKey, DateUtilities.now());
+        }
+
         setUpUpdateList();
         setUpMemberPage();
     }
@@ -400,12 +418,6 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
     private void refreshData(final boolean manual, boolean bypassTagShow) {
         final boolean noRemoteId = tagData.getValue(TagData.REMOTE_ID) == 0;
 
-        String fetchKey = "tag-fetch-" + tagData.getId(); //$NON-NLS-1$
-        long lastFetchDate = Preferences.getLong(fetchKey, 0);
-        if(!manual && DateUtilities.now() < lastFetchDate + 300000L)
-            return;
-        Preferences.setLong(fetchKey, DateUtilities.now());
-
         final ProgressDialog progressDialog;
         if(manual && !noRemoteId)
             progressDialog = DialogUtilities.progressDialog(this, getString(R.string.DLG_please_wait));
@@ -476,6 +488,52 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
                 });
             }
         });
+    }
+
+    // --- receivers
+
+    private final BroadcastReceiver notifyReceiver = new BroadcastReceiver() {
+        @SuppressWarnings("nls")
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            System.err.println("TVA thug hustlin - ");
+
+            if(!intent.hasExtra("tag_id"))
+                return;
+            System.err.println(Long.toString(tagData.getValue(TagData.REMOTE_ID)) +
+                    " VS " + intent.getStringExtra("tag_id"));
+            if(!Long.toString(tagData.getValue(TagData.REMOTE_ID)).equals(intent.getStringExtra("tag_id")))
+                return;
+
+            if(intent.hasExtra("activity_id")) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        refreshUpdatesList();
+                    }
+                });
+            } else {
+                refreshData(false, true);
+            }
+
+            NotificationManager nm = new AndroidNotificationManager(ContextManager.getContext());
+            nm.cancel(tagData.getValue(TagData.REMOTE_ID).intValue());
+        }
+    };
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        IntentFilter intentFilter = new IntentFilter(BROADCAST_TAG_ACTIVITY);
+        registerReceiver(notifyReceiver, intentFilter);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        unregisterReceiver(notifyReceiver);
     }
 
     // --- events

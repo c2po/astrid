@@ -22,9 +22,12 @@ import com.todoroo.andlib.utility.Preferences;
 import com.todoroo.astrid.actfm.TagViewActivity;
 import com.todoroo.astrid.actfm.sync.ActFmSyncService;
 import com.todoroo.astrid.activity.ShortcutActivity;
+import com.todoroo.astrid.activity.TaskListActivity;
+import com.todoroo.astrid.api.AstridApiConstants;
 import com.todoroo.astrid.api.FilterWithCustomIntent;
 import com.todoroo.astrid.core.CoreFilterExposer;
 import com.todoroo.astrid.data.TagData;
+import com.todoroo.astrid.reminders.Notifications;
 import com.todoroo.astrid.service.TagDataService;
 import com.todoroo.astrid.tags.TagFilterExposer;
 import com.todoroo.astrid.utility.Constants;
@@ -41,60 +44,39 @@ public class C2DMReceiver extends BroadcastReceiver {
     @Autowired TagDataService tagDataService;
 
     @Override
-    public void onReceive(Context context, Intent intent) {
+    public void onReceive(Context context, final Intent intent) {
         ContextManager.setContext(context);
         DependencyInjectionService.getInstance().inject(this);
         if (intent.getAction().equals("com.google.android.c2dm.intent.REGISTRATION")) {
             handleRegistration(intent);
         } else if (intent.getAction().equals("com.google.android.c2dm.intent.RECEIVE")) {
-            handleMessage(intent);
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    handleMessage(intent);
+                }
+            }).start();
          }
      }
 
-    /** Handle message */
+    /** Handle message. Run on separate thread. */
     private void handleMessage(Intent intent) {
         String message = intent.getStringExtra("alert");
         Context context = ContextManager.getContext();
 
-        Intent notifyIntent;
-        if(intent.hasExtra("tag_id")) {
-            TodorooCursor<TagData> cursor = tagDataService.query(
-                    Query.select(TagData.PROPERTIES).where(TagData.REMOTE_ID.eq(
-                            intent.getStringExtra("tag_id"))));
-            try {
-                final TagData tagData = new TagData();
-                if(cursor.getCount() == 0) {
-                    tagData.setValue(TagData.NAME, intent.getStringExtra("title"));
-                    tagData.setValue(TagData.REMOTE_ID, Long.parseLong(intent.getStringExtra("tag_id")));
-                    Flags.set(Flags.SUPPRESS_SYNC);
-                    tagDataService.save(tagData);
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                actFmSyncService.fetchTag(tagData);
-                            } catch (IOException e) {
-                                Log.e("astrid-c2dm", "error fetching", e);
-                            } catch (JSONException e) {
-                                Log.e("astrid-c2dm", "error fetching", e);
-                            }
-                        }
-                    }).start();
-                } else {
-                    cursor.moveToNext();
-                    tagData.readFromCursor(cursor);
-                }
+        Intent notifyIntent = null;
+        int notifId;
 
-                FilterWithCustomIntent filter = (FilterWithCustomIntent)TagFilterExposer.filterFromTagData(context, tagData);
-                if(intent.hasExtra("activity_id"))
-                    filter.customExtras.putInt(TagViewActivity.EXTRA_START_TAB, 1);
-                notifyIntent = ShortcutActivity.createIntent(filter);
-            } finally {
-                cursor.close();
-            }
+        // fetch data
+        if(intent.hasExtra("tag_id")) {
+            notifyIntent = createTagIntent(context, intent);
+            notifId = (int) Long.parseLong(intent.getStringExtra("tag_id"));
         } else {
-            notifyIntent = ShortcutActivity.createIntent(CoreFilterExposer.buildInboxFilter(context.getResources()));
+            notifId = Constants.NOTIFICATION_ACTFM;
         }
+
+        if(notifyIntent == null)
+            notifyIntent = ShortcutActivity.createIntent(CoreFilterExposer.buildInboxFilter(context.getResources()));
 
         notifyIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(context,
@@ -104,16 +86,81 @@ public class C2DMReceiver extends BroadcastReceiver {
         NotificationManager nm = new AndroidNotificationManager(ContextManager.getContext());
         Notification notification = new Notification(R.drawable.notif_pink_alarm,
                 message, System.currentTimeMillis());
-        String title = ContextManager.getString(R.string.app_name);
+        String title;
         if(intent.hasExtra("title"))
-            title += ": " + intent.getStringExtra("title");
+            title = "Astrid: " + intent.getStringExtra("title");
+        else
+            title = ContextManager.getString(R.string.app_name);
         notification.setLatestEventInfo(ContextManager.getContext(), title,
                 message, pendingIntent);
         notification.flags |= Notification.FLAG_AUTO_CANCEL;
-        if("true".equals(intent.getStringExtra("sound")))
-            notification.flags |= Notification.DEFAULT_SOUND;
 
-        nm.notify(Constants.NOTIFICATION_ACTFM, notification);
+        boolean sounds = !"false".equals(intent.getStringExtra("sound"));
+        notification.defaults = 0;
+        if(sounds && !Notifications.isQuietHours()) {
+            notification.defaults |= Notification.DEFAULT_SOUND;
+            notification.defaults |= Notification.DEFAULT_VIBRATE;
+        }
+
+        nm.notify(notifId, notification);
+
+        if(intent.hasExtra("tag_id")) {
+            Intent broadcastIntent = new Intent(TagViewActivity.BROADCAST_TAG_ACTIVITY);
+            broadcastIntent.putExtras(intent);
+            ContextManager.getContext().sendBroadcast(broadcastIntent, AstridApiConstants.PERMISSION_READ);
+        }
+    }
+
+    private Intent createTagIntent(Context context, Intent intent) {
+        TodorooCursor<TagData> cursor = tagDataService.query(
+                Query.select(TagData.PROPERTIES).where(TagData.REMOTE_ID.eq(
+                        intent.getStringExtra("tag_id"))));
+        try {
+            final TagData tagData = new TagData();
+            if(cursor.getCount() == 0) {
+                tagData.setValue(TagData.NAME, intent.getStringExtra("title"));
+                tagData.setValue(TagData.REMOTE_ID, Long.parseLong(intent.getStringExtra("tag_id")));
+                Flags.set(Flags.SUPPRESS_SYNC);
+                tagDataService.save(tagData);
+
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            actFmSyncService.fetchTag(tagData);
+                        } catch (IOException e) {
+                            Log.e("c2dm-tag-rx", "io-exception", e);
+                        } catch (JSONException e) {
+                            Log.e("c2dm-tag-rx", "json-exception", e);
+                        }
+                    }
+                }).start();
+            } else {
+                cursor.moveToNext();
+                tagData.readFromCursor(cursor);
+            }
+
+            FilterWithCustomIntent filter = (FilterWithCustomIntent)TagFilterExposer.filterFromTagData(context, tagData);
+            if(intent.hasExtra("activity_id")) {
+                filter.customExtras.putInt(TagViewActivity.EXTRA_START_TAB, 1);
+
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        actFmSyncService.fetchUpdatesForTag(tagData, false, null);
+                    }
+                }).start();
+            }
+
+            Intent launchIntent = new Intent();
+            launchIntent.putExtra(TaskListActivity.TOKEN_FILTER, filter);
+            launchIntent.setComponent(filter.customTaskList);
+            launchIntent.putExtras(filter.customExtras);
+
+            return launchIntent;
+        } finally {
+            cursor.close();
+        }
     }
 
     private void handleRegistration(Intent intent) {

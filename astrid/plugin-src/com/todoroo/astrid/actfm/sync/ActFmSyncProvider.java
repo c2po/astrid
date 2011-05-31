@@ -160,12 +160,7 @@ public class ActFmSyncProvider extends SyncProvider<ActFmTaskContainer> {
      * @param serverTime last sync time
      */
     private void fetchRemoteTagData(int serverTime) throws ActFmServiceException, IOException, JSONException {
-        JSONObject result = invoker.invoke("tag_list");
-        JSONArray tags = result.getJSONArray("list");
-        for(int i = 0; i < tags.length(); i++) {
-            JSONObject tagObject = tags.getJSONObject(i);
-            actFmDataService.saveTagData(tagObject);
-        }
+        actFmSyncService.fetchTags();
     }
 
     /**

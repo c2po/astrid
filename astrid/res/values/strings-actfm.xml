@@ -5,13 +5,13 @@
   <!-- ================================================== general terms == -->
 
   <!-- People Editing Activity -->    
-  <string name="EPE_action">People</string>
+  <string name="EPE_action">Share</string>
   
   <!-- task sharing dialog: assigned hint -->
   <string name="actfm_person_hint">Contact Name</string>
   
   <!-- task sharing dialog: shared with hint -->
-  <string name="actfm_person_or_tag_hint">Name or Shared Tag</string>
+  <string name="actfm_person_or_tag_hint">Contact or Shared Tag</string>
 
   <!-- toast on transmit success -->
   <string name="actfm_toast_success">Saved on Server</string>
@@ -27,6 +27,9 @@
 
   <!-- menu item to select from gallery -->
   <string name="actfm_picture_gallery">Pick from Gallery</string>
+
+  <!-- filter list activity: refresh tags -->
+  <string name="actfm_FLA_menu_refresh">Refresh Tags</string>
   
   <!-- =============================================== ProjectViewActivity == -->
 

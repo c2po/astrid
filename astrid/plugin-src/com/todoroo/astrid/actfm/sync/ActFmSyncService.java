@@ -61,8 +61,6 @@ import com.todoroo.astrid.utility.Flags;
 @SuppressWarnings("nls")
 public final class ActFmSyncService {
 
-    private static final long MIN_FETCH_THRESHOLD = 5 * 60000L;
-
     // --- instance variables
 
     @Autowired TagDataService tagDataService;
@@ -70,6 +68,7 @@ public final class ActFmSyncService {
     @Autowired TaskService taskService;
     @Autowired ActFmPreferenceService actFmPreferenceService;
     @Autowired ActFmInvoker actFmInvoker;
+    @Autowired ActFmDataService actFmDataService;
     @Autowired TaskDao taskDao;
     @Autowired TagDataDao tagDataDao;
     @Autowired UpdateDao updateDao;
@@ -425,6 +424,21 @@ public final class ActFmSyncService {
     }
 
     /**
+     * Fetch all tags
+     */
+    public void fetchTags() throws JSONException, IOException {
+        if(!checkForToken())
+            return;
+
+        JSONObject result = actFmInvoker.invoke("tag_list", "token", token);
+        JSONArray tags = result.getJSONArray("list");
+        for(int i = 0; i < tags.length(); i++) {
+            JSONObject tagObject = tags.getJSONObject(i);
+            actFmDataService.saveTagData(tagObject);
+        }
+    }
+
+    /**
      * Fetch tasks for the given tagData asynchronously
      * @param tagData
      * @param manual
@@ -470,9 +484,7 @@ public final class ActFmSyncService {
      * @param manual
      * @param done
      */
-    public void fetchUpdatesForTag(final TagData tagData, boolean manual, Runnable done) {
-        if(manual)
-            updateDao.deleteWhere(Update.TAG.eq(tagData.getId()));
+    public void fetchUpdatesForTag(final TagData tagData, final boolean manual, Runnable done) {
         invokeFetchList("activity", manual, new ListItemProcessor<Update>() {
             @Override
             protected void mergeAndSave(JSONArray list, HashMap<Long,Long> locals) throws JSONException {
@@ -594,16 +606,12 @@ public final class ActFmSyncService {
 
     /** Call sync method */
     private void invokeFetchList(final String model, final boolean manual,
-            final ListItemProcessor<?> processor, final Runnable done, final String key,
+            final ListItemProcessor<?> processor, final Runnable done, final String lastSyncKey,
             Object... params) {
         if(!checkForToken())
             return;
 
-        long lastFetchTime = Preferences.getLong("actfm_last_" + key, 0);
-        if(!manual && DateUtilities.now() - lastFetchTime < MIN_FETCH_THRESHOLD)
-            return;
-
-        long serverFetchTime = manual ? 0 : Preferences.getLong("actfm_time_" + key, 0);
+        long serverFetchTime = manual ? 0 : Preferences.getLong("actfm_time_" + lastSyncKey, 0);
         final Object[] getParams = AndroidUtilities.concat(new Object[params.length + 4], params, "token", token,
                 "modified_after", serverFetchTime);
 
@@ -615,10 +623,11 @@ public final class ActFmSyncService {
                     result = actFmInvoker.invoke(model + "_list", getParams);
                     JSONArray list = result.getJSONArray("list");
                     processor.process(list);
-                    Preferences.setLong("actfm_time_" + key, result.optLong("time", 0));
-                    Preferences.setLong("actfm_last_" + key, DateUtilities.now());
+                    Preferences.setLong("actfm_time_" + lastSyncKey, result.optLong("time", 0));
+                    Preferences.setLong("actfm_last_" + lastSyncKey, DateUtilities.now());
 
-                    done.run();
+                    if(done != null)
+                        done.run();
                 } catch (IOException e) {
                     handleException("io-exception-list-" + model, e);
                 } catch (JSONException e) {

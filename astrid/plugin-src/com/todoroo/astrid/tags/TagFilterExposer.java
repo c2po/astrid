@@ -103,6 +103,7 @@ public class TagFilterExposer extends BroadcastReceiver {
         Tag tag = new Tag(tagData.getValue(TagData.NAME),
                 tagData.getValue(TagData.TASK_COUNT),
                 tagData.getValue(TagData.REMOTE_ID));
+        System.err.println("groban: " + tag.tag + ", " + tag.remoteId);
         return filterFromTag(context, tag, TaskCriteria.activeAndVisible(), true);
     }
 

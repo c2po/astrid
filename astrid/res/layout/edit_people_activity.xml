@@ -143,6 +143,7 @@
               android:id="@+id/checkbox_facebook"
               android:text="@string/actfm_EPA_facebook" 
               android:paddingLeft="45dip"
+              android:visibility="gone"
               android:layout_width="fill_parent" 
               android:layout_height="wrap_content"/>
           
@@ -150,6 +151,7 @@
               android:id="@+id/checkbox_twitter"
               android:text="@string/actfm_EPA_twitter" 
               android:paddingLeft="45dip"
+              android:visibility="gone"
               android:layout_width="fill_parent" 
               android:layout_height="wrap_content"/>
               
