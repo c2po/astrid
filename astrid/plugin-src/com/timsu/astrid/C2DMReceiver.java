@@ -3,6 +3,7 @@ package com.timsu.astrid;
 import java.io.IOException;
 
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import android.app.Notification;
 import android.app.PendingIntent;
@@ -18,6 +19,7 @@ import com.todoroo.andlib.service.DependencyInjectionService;
 import com.todoroo.andlib.service.NotificationManager;
 import com.todoroo.andlib.service.NotificationManager.AndroidNotificationManager;
 import com.todoroo.andlib.sql.Query;
+import com.todoroo.andlib.utility.DateUtilities;
 import com.todoroo.andlib.utility.Preferences;
 import com.todoroo.astrid.actfm.TagViewActivity;
 import com.todoroo.astrid.actfm.sync.ActFmSyncService;
@@ -26,7 +28,9 @@ import com.todoroo.astrid.activity.TaskListActivity;
 import com.todoroo.astrid.api.AstridApiConstants;
 import com.todoroo.astrid.api.FilterWithCustomIntent;
 import com.todoroo.astrid.core.CoreFilterExposer;
+import com.todoroo.astrid.dao.UpdateDao;
 import com.todoroo.astrid.data.TagData;
+import com.todoroo.astrid.data.Update;
 import com.todoroo.astrid.reminders.Notifications;
 import com.todoroo.astrid.service.TagDataService;
 import com.todoroo.astrid.tags.TagFilterExposer;
@@ -42,6 +46,7 @@ public class C2DMReceiver extends BroadcastReceiver {
 
     @Autowired ActFmSyncService actFmSyncService;
     @Autowired TagDataService tagDataService;
+    @Autowired UpdateDao updateDao;
 
     @Override
     public void onReceive(Context context, final Intent intent) {
@@ -111,7 +116,7 @@ public class C2DMReceiver extends BroadcastReceiver {
         }
     }
 
-    private Intent createTagIntent(Context context, Intent intent) {
+    private Intent createTagIntent(final Context context, final Intent intent) {
         TodorooCursor<TagData> cursor = tagDataService.query(
                 Query.select(TagData.PROPERTIES).where(TagData.REMOTE_ID.eq(
                         intent.getStringExtra("tag_id"))));
@@ -144,12 +149,28 @@ public class C2DMReceiver extends BroadcastReceiver {
             if(intent.hasExtra("activity_id")) {
                 filter.customExtras.putInt(TagViewActivity.EXTRA_START_TAB, 1);
 
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        actFmSyncService.fetchUpdatesForTag(tagData, false, null);
-                    }
-                }).start();
+                try {
+                    Update update = new Update();
+                    update.setValue(Update.REMOTE_ID, Long.parseLong(intent.getStringExtra("activity_id")));
+                    update.setValue(Update.USER_ID, Long.parseLong(intent.getStringExtra("user_id")));
+                    JSONObject user = new JSONObject();
+                    user.put("id", update.getValue(Update.USER_ID));
+                    user.put("name", intent.getStringExtra("user_name"));
+                    update.setValue(Update.USER, user.toString());
+                    update.setValue(Update.ACTION, "commented");
+                    update.setValue(Update.ACTION_CODE, "tag_comment");
+                    update.setValue(Update.TARGET_NAME, intent.getStringExtra("title"));
+                    String message = intent.getStringExtra("alert");
+                    if(message.contains(":"))
+                        message = message.substring(message.indexOf(':') + 2);
+                    update.setValue(Update.MESSAGE, message);
+                    update.setValue(Update.CREATION_DATE, DateUtilities.now());
+                    update.setValue(Update.TAG, tagData.getId());
+                    updateDao.createNew(update);
+                } catch (JSONException e) {
+                    //
+                }
+
             }
 
             Intent launchIntent = new Intent();

@@ -505,16 +505,14 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
             if(!Long.toString(tagData.getValue(TagData.REMOTE_ID)).equals(intent.getStringExtra("tag_id")))
                 return;
 
-            if(intent.hasExtra("activity_id")) {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        refreshUpdatesList();
-                    }
-                });
-            } else {
-                refreshData(false, true);
-            }
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    System.err.println("REFRESH updates list pa-pa-pa");
+                    refreshUpdatesList();
+                }
+            });
+            refreshData(false, true);
 
             NotificationManager nm = new AndroidNotificationManager(ContextManager.getContext());
             nm.cancel(tagData.getValue(TagData.REMOTE_ID).intValue());

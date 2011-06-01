@@ -342,12 +342,11 @@ public class EditPeopleActivity extends Activity {
                 userJson = PeopleContainer.createUserJson(assignedCustom);
             else
                 userJson = assignedTo.user;
-            long userId = userJson.optLong("id", -1);
-            if(userId == 0) {
+            if(userJson == null || userJson.optLong("id", -1) == 0) {
                 task.setValue(Task.USER_ID, 0L);
                 task.setValue(Task.USER, "{}");
             } else {
-                task.setValue(Task.USER_ID, userId);
+                task.setValue(Task.USER_ID, userJson.optLong("id", -1));
                 task.setValue(Task.USER, userJson.toString());
             }
 
