@@ -468,8 +468,7 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
                     @Override
                     public void run() {
                         loadTaskListContent(true);
-                        if(progressDialog != null)
-                            progressDialog.dismiss();
+                        DialogUtilities.dismissDialog(TagViewActivity.this, progressDialog);
                     }
                 });
             }
@@ -482,8 +481,7 @@ public class TagViewActivity extends TaskListActivity implements OnTabChangeList
                     @Override
                     public void run() {
                         refreshUpdatesList();
-                        if(progressDialog != null)
-                            progressDialog.dismiss();
+                        DialogUtilities.dismissDialog(TagViewActivity.this, progressDialog);
                     }
                 });
             }
